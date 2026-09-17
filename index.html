@@ -136,10 +136,30 @@
         svg line:hover { stroke: #58a6ff; stroke-width: 3px; cursor: pointer; }
 
         .team-node {
-            position: absolute; transform: translate(-50%, -50%); background: var(--node-bg);
-            border: 2px solid var(--node-border); border-radius: 50%; width: 30px; height: 30px;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; z-index: 5; overflow: hidden;
+            position: absolute; 
+            transform: translate(-50%, -50%); 
+            background: var(--node-bg);
+            border: 2px solid var(--node-border); 
+            border-radius: 50%; 
+            width: 30px; 
+            height: 30px;
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            z-index: 5; 
+            overflow: visible;
+        }
+
+        .team-node::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 44px;
+            height: 44px;
         }
         .team-node img { width: 18px; height: 18px; object-fit: contain; }
         .team-node:hover { border-color: #58a6ff; transform: translate(-50%, -50%) scale(1.45); z-index: 25; box-shadow: 0 0 15px var(--accent-glow); }
@@ -209,6 +229,27 @@
         @keyframes modalPop {
             from { transform: scale(0.9); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .main-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .database-panel {
+                width: 100%;
+                max-height: 300px;
+            }
+
+            .arena-viewport {
+                width: 100%;
+                height: 450px;
+            }
         }
         .modal-close {
             position: absolute; top: 15px; right: 15px; background: none; border: none;
@@ -480,6 +521,26 @@
         panX = e.clientX - startX; panY = e.clientY - startY;
         atualizarTransform();
     });
+
+    viewport.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - panX;
+            startY = e.touches[0].clientY - panY;
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => isDragging = false);
+
+    viewport.addEventListener('touchmove', e => {
+        if (!isDragging) return;
+        if (e.touches.length === 1) {
+            panX = e.touches[0].clientX - startX;
+            panY = e.touches[0].clientY - startY;
+            atualizarTransform();
+        }
+    }, { passive: true });
+
     viewport.addEventListener('wheel', e => {
         e.preventDefault();
         scale = e.deltaY < 0 ? Math.min(scale + 0.1, 2.5) : Math.max(scale - 0.1, 0.4);
@@ -488,7 +549,10 @@
 
     function resetarZoom() { scale = 0.8; panX = 0; panY = 0; atualizarTransform(); }
     function atualizarTransform() { arena.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
-
+    function ajustarZoom(valor) {
+        scale = Math.min(Math.max(scale + valor, 0.4), 2.5);
+        atualizarTransform();
+    }
     function normalizar(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
     const svgPadrao = `<svg class="svg-padrao" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>`;
 
