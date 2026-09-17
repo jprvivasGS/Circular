@@ -502,10 +502,10 @@
         listaCompleta.forEach(t => {
             let nomeTime = t.nome; 
 
-            mapaEscudos[t.nome] = `assets/${nomeTime}.png`;
-            mapaPaletas[t.nome] = `assets/Palhetas/${nomeTime}.png`;
-            mapaCasa[t.nome] = `assets/Uniformes/Casa/${nomeTime}.png`;
-            mapaFora[t.nome] = `assets/Uniformes/Fora/${nomeTime}.png`;
+            mapaEscudos[t.nome] = `Circular/assets/${nomeTime}.png`;
+            mapaPaletas[t.nome] = `Circular/assets/Palhetas/${nomeTime}.png`;
+            mapaCasa[t.nome] = `Circular/assets/Uniformes/Casa/${nomeTime}.png`;
+            mapaFora[t.nome] = `Circular/assets/Uniformes/Fora/${nomeTime}.png`;
         });
 
         if (typeof montarListaDB === 'function') montarListaDB();
