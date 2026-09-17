@@ -491,25 +491,31 @@
     function normalizar(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
     const svgPadrao = `<svg class="svg-padrao" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>`;
 
+    console.log("Iniciando carregamento automático de assets...");
+
     function carregarImagensAutomaticamente() {
-        if (typeof listaCompleta === 'undefined') return;
+        if (typeof listaCompleta === 'undefined') {
+            console.warn("listaCompleta não encontrada ainda!");
+            return;
+        }
 
         listaCompleta.forEach(t => {
-            let nomeArquivo = t.nome; 
-            
-            mapaEscudos[t.nome] = `assets/${nomeArquivo}.png`;
-            mapaPaletas[t.nome] = `assets/Palhetas/${nomeArquivo}.png`;
-            mapaCasa[t.nome] = `assets/Uniformes/Casa/${nomeArquivo}.png`;
-            mapaFora[t.nome] = `assets/Uniformes/Fora/${nomeArquivo}.png`;
+            let nomeTime = t.nome; 
+
+            mapaEscudos[t.nome] = `assets/${nomeTime}.png`;
+            mapaPaletas[t.nome] = `assets/Palhetas/${nomeTime}.png`;
+            mapaCasa[t.nome] = `assets/Uniformes/Casa/${nomeTime}.png`;
+            mapaFora[t.nome] = `assets/Uniformes/Fora/${nomeTime}.png`;
         });
 
         if (typeof montarListaDB === 'function') montarListaDB();
         if (typeof renderizar === 'function') renderizar();
+        
+        console.log("Assets mapeados com sucesso!");
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        carregarImagensAutomaticamente();
-    });
+    // Executa imediatamente para garantir que vai rodar
+    carregarImagensAutomaticamente();
 
     function obterEscudo(nome) {
         if (!nome) return svgPadrao;
