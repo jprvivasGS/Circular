@@ -449,10 +449,10 @@
 
     let nomesTimes = listaCompleta.map(t => t.nome);
 
-    const mapaEscudos = {};
-    const mapaCasa = {};
-    const mapaFora = {};
-    const mapaPaletas = {};
+    window.mapaEscudos = window.mapaEscudos || {};
+    window.mapaCasa = window.mapaCasa || {};
+    window.mapaFora = window.mapaFora || {};
+    window.mapaPalhetas = window.mapaPalhetas || {};
 
     let currentTeamKey = "";
     let ultimoCampeao = null;
