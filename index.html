@@ -500,12 +500,14 @@
         }
 
         listaCompleta.forEach(t => {
-            let nomeTime = t.nome; 
+            let chave = normalizar(t.nome);
 
-            mapaEscudos[t.nome] = `assets/${nomeTime}.png`;
-            mapaPaletas[t.nome] = `assets/Palhetas/${nomeTime}.png`;
-            mapaCasa[t.nome] = `assets/Uniformes/Casa/${nomeTime}.png`;
-            mapaFora[t.nome] = `assets/Uniformes/Fora/${nomeTime}.png`;
+            let nomeArquivo = t.nome; 
+
+            mapaEscudos[chave] = `assets/${nomeArquivo}.png`;
+            mapaPalhetas[chave] = `assets/Palhetas/${nomeArquivo}.png`;
+            mapaCasa[chave] = `assets/Uniformes/Casa/${nomeArquivo}.png`;
+            mapaFora[chave] = `assets/Uniformes/Fora/${nomeArquivo}.png`;
         });
 
         if (typeof montarListaDB === 'function') montarListaDB();
@@ -514,7 +516,6 @@
         console.log("Assets mapeados com sucesso!");
     }
 
-    // Executa imediatamente para garantir que vai rodar
     carregarImagensAutomaticamente();
 
     function obterEscudo(nome) {
