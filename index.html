@@ -493,26 +493,18 @@
     function normalizar(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
     const svgPadrao = `<svg class="svg-padrao" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>`;
 
-    function importarPasta(e) {
-        for (let file of e.target.files) {
-            let relPath = file.webkitRelativePath;
-            let nomeArquivo = file.name;
-            let url = URL.createObjectURL(file);
-            let nomeSemExt = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) || nomeArquivo;
-
-            if (relPath.includes('/Palhetas/') || relPath.includes('\\Palhetas\\')) {
-                // Mapeia diretamente usando o nome limpo do arquivo dentro da pasta Palhetas
-                let chaveTime = normalizar(nomeSemExt);
-                mapaPaletas[chaveTime] = url;
-            } else if (relPath.includes('/Casa/') || relPath.includes('\\Casa\\')) {
-                mapaCasa[normalizar(nomeSemExt)] = url;
-            } else if (relPath.includes('/Fora/') || relPath.includes('\\Fora\\')) {
-                mapaFora[normalizar(nomeSemExt)] = url;
-            } else {
-                mapaEscudos[normalizar(nomeSemExt)] = url;
-            }
-        }
-        montarListaDB(); 
+    function carregarImagensAutomaticamente() {
+        listaCompleta.forEach(t => {
+            let chave = normalizar(t.nome);
+            
+            // Defina aqui o caminho relativo para as suas pastas no GitHub
+            mapaEscudos[chave] = `assets/escudos/${chave}.png`;
+            mapaCasa[chave] = `assets/casa/${chave}.png`;
+            mapaFora[chave] = `assets/fora/${chave}.png`;
+            mapaPaletas[chave] = `assets/palhetas/${chave}.png`;
+        });
+        
+        montarListaDB();
         renderizar();
     }
 
@@ -644,88 +636,76 @@
         const teamNameEl = document.getElementById('celebration-team-name');
         const badgeBox = document.getElementById('celebration-badge-box');
         
+        if (!overlay || !teamNameEl) return;
+
         teamNameEl.innerText = nomeTime;
         badgeBox.innerHTML = obterEscudo(nomeTime);
         overlay.style.display = 'flex';
 
-        const canvas = document.getElementById('fireworks-canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        extrairCoresDaPalheta(nomeTime, (coresDinamicas) => {
-            let particles = [];
-
-            function criarExplosao(x, y) {
-                let numParticles = 75;
-                for (let i = 0; i < numParticles; i++) {
-                    let angle = Math.random() * Math.PI * 2;
-                    let speed = Math.random() * 7 + 2;
-                    let color = coresDinamicas[Math.floor(Math.random() * coresDinamicas.length)];
-                    particles.push({
-                        x: x, y: y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        alpha: 1,
-                        color: color,
-                        decay: Math.random() * 0.012 + 0.008
-                    });
-                }
-            }
-
-            criarExplosao(window.innerWidth / 2, window.innerHeight / 2 - 50);
-            criarExplosao(window.innerWidth / 2 - 220, window.innerHeight / 2 - 120);
-            criarExplosao(window.innerWidth / 2 + 220, window.innerHeight / 2 - 120);
-
-            if (fireworksInterval) clearInterval(fireworksInterval);
-            fireworksInterval = setInterval(() => {
-                let rx = Math.random() * window.innerWidth * 0.7 + window.innerWidth * 0.15;
-                let ry = Math.random() * window.innerHeight * 0.5 + window.innerHeight * 0.2;
-                criarExplosao(rx, ry);
-            }, 750);
-
-            function loopFogos() {
-                ctx.fillStyle = 'rgba(13, 17, 23, 0.2)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    let p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.04;
-                    p.alpha -= p.decay;
-
-                    if (p.alpha <= 0) {
-                        particles.splice(i, 1);
-                        continue;
-                    }
-
-                    ctx.save();
-                    ctx.globalAlpha = p.alpha;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-
-                if (document.getElementById('celebration-overlay').style.display === 'flex') {
-                    requestAnimationFrame(loopFogos);
-                }
-            }
-            requestAnimationFrame(loopFogos);
+        extrairCoresDaPalheta(nomeTime, (cores) => {
+            iniciarFogosCanvas(cores);
         });
     }
 
     function pararFogos() {
-        if (fireworksInterval) clearInterval(fireworksInterval);
         const overlay = document.getElementById('celebration-overlay');
         if (overlay) overlay.style.display = 'none';
+        if (fireworksInterval) clearInterval(fireworksInterval);
+    }
+
+    function iniciarFogosCanvas(cores) {
         const canvas = document.getElementById('fireworks-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particles = [];
+
+        if (fireworksInterval) clearInterval(fireworksInterval);
+
+        fireworksInterval = setInterval(() => {
+            // Lógica simples de partículas para os fogos
+            ctx.fillStyle = 'rgba(13, 17, 23, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (Math.random() < 0.05) {
+                let x = Math.random() * canvas.width;
+                let y = Math.random() * (canvas.height / 2);
+                let corAleatoria = cores[Math.floor(Math.random() * cores.length)];
+                
+                for (let i = 0; i < 50; i++) {
+                    let angulo = Math.random() * Math.PI * 2;
+                    let velocidade = Math.random() * 6 + 2;
+                    particles.push({
+                        x: x, y: y,
+                        vx: Math.cos(angulo) * velocidade,
+                        vy: Math.sin(angulo) * velocidade,
+                        alpha: 1,
+                        color: corAleatoria
+                    });
+                }
+            }
+
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.05; // gravidade
+                p.alpha -= 0.015;
+
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                } else {
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+        }, 30);
     }
 
     function renderizar() {
