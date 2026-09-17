@@ -281,8 +281,6 @@
     <div class="main-layout">
         <div class="database-panel">
             <h3>📂 Escudos e Uniformes</h3>
-            <label for="folder-input" class="folder-btn">📁 Selecionar Pasta Raiz</label>
-            <input type="file" id="folder-input" webkitdirectory directory multiple onchange="importarPasta(event)">
             <div id="db-list"></div>
         </div>
 
@@ -500,7 +498,6 @@
             let nomeArquivo = t.nome; 
             
             mapaEscudos[t.nome] = `assets/${nomeArquivo}.png`;
-            
             mapaPaletas[t.nome] = `assets/Palhetas/${nomeArquivo}.png`;
             mapaCasa[t.nome] = `assets/Uniformes/casa_${nomeArquivo}.png`;
             mapaFora[t.nome] = `assets/Uniformes/fora_${nomeArquivo}.png`;
