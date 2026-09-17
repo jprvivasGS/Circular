@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copa do Brasil - Chaveamento Espiral</title>
+    <style>
+        :root {
+            --bg-main: #0d1117;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --node-bg: #21262d;
+            --node-border: #484f58;
+            --accent-glow: rgba(56, 139, 253, 0.15);
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-main);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        h1 { margin: 5px 0 20px 0; font-size: 1.5rem; text-align: center; color: #f0f6fc; letter-spacing: 0.5px; }
+        
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            max-width: 1550px;
+            width: 100%;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .database-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            max-height: 850px;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .database-panel h3 { 
+            margin-top: 0; 
+            font-size: 0.95rem; 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 10px; 
+            color: #f0f6fc;
+        }
+
+        .folder-btn {
+            background: #238636; 
+            color: white; 
+            border: none; 
+            padding: 10px 12px; 
+            font-size: 0.8rem;
+            font-weight: 600; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            width: 100%; 
+            margin-bottom: 15px;
+            text-align: center; 
+            display: block; 
+            box-sizing: border-box;
+            transition: background 0.2s;
+        }
+        .folder-btn:hover { background: #2ea043; }
+        input[type="file"] { display: none; }
+        
+        .db-item {
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+            padding: 8px; 
+            border-bottom: 1px solid var(--border-color); 
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-radius: 6px;
+        }
+        .db-item:hover { background: rgba(255,255,255,0.05); }
+        .db-info { display: flex; flex-direction: column; gap: 2px; }
+        .db-state { font-size: 0.7rem; color: #8b949e; }
+        
+        .db-badge {
+            width: 28px; height: 28px; border-radius: 50%; background: var(--node-bg);
+            border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; overflow: hidden;
+            flex-shrink: 0;
+        }
+        .db-badge img { width: 18px; height: 18px; object-fit: contain; }
+
+        .arena-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; }
+        .controls { margin-bottom: 15px; display: flex; justify-content: center; gap: 10px; z-index: 30; }
+        .btn {
+            background: #21262d; color: #c9d1d9; border: 1px solid var(--border-color); padding: 8px 16px; font-size: 0.8rem;
+            font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .btn:hover { background: #30363d; border-color: #8b949e; color: #fff; }
+        .btn-reset { background: #da3633; border-color: #f85149; color: white; }
+        .btn-reset:hover { background: #b62324; }
+
+        .zoom-controls {
+            position: absolute; top: 60px; right: 20px; background: var(--panel-bg);
+            border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; z-index: 40; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .zoom-btn { background: var(--panel-bg); border: none; padding: 10px 14px; font-size: 1rem; font-weight: bold; cursor: pointer; color: var(--text-color); transition: background 0.2s; }
+        .zoom-btn:hover { background: rgba(255,255,255,0.08); }
+
+        .arena-viewport {
+            position: relative; width: 1100px; height: 850px; background: var(--panel-bg);
+            border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden; cursor: grab;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .arena-viewport:active { cursor: grabbing; }
+
+        .arena-container {
+            position: absolute; width: 1800px; height: 1800px; top: -475px; left: -350px;
+            transform-origin: center center; transition: transform 0.05s ease-out;
+        }
+
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        svg line { pointer-events: stroke; transition: stroke 0.2s, stroke-width 0.2s; }
+        svg line:hover { stroke: #58a6ff; stroke-width: 3px; cursor: pointer; }
+
+        .team-node {
+            position: absolute; transform: translate(-50%, -50%); background: var(--node-bg);
+            border: 2px solid var(--node-border); border-radius: 50%; width: 30px; height: 30px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; z-index: 5; overflow: hidden;
+        }
+        .team-node img { width: 18px; height: 18px; object-fit: contain; }
+        .team-node:hover { border-color: #58a6ff; transform: translate(-50%, -50%) scale(1.45); z-index: 25; box-shadow: 0 0 15px var(--accent-glow); }
+        
+        .node-preliminar { border-color: #a371f7; }
+        .node-r64 { border-color: #388bfd; }
+        .node-r32 { border-color: #39c5cf; }
+        .node-r16 { border-color: #2ea043; }
+        .node-r8 { border-color: #7ee787; }
+        .node-r4 { border-color: #d29922; }
+        .node-r2 { border-color: #db6d28; }
+
+        .team-node.winner { background: #116329; border-color: #3fb950 !important; border-width: 2px; }
+        .team-node.eliminated { filter: grayscale(100%); opacity: 0.2; }
+        .team-node.waiting { border-style: dashed; opacity: 0.35; }
+
+        .champion-center {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #da3633, #b62324); border: 2px solid #f85149; padding: 8px 16px; border-radius: 30px;
+            font-size: 0.8rem; font-weight: bold; box-shadow: 0 6px 20px rgba(218, 54, 51, 0.4);
+            z-index: 30; max-width: 180px; text-align: center; color: white; display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .champion-center img { width: 20px; height: 20px; object-fit: contain; }
+        .svg-padrao { width: 14px; height: 14px; fill: #8b949e; }
+
+        #celebration-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 17, 23, 0.75); backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 9999;
+        }
+        #fireworks-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;
+        }
+        .celebration-card {
+            position: relative; z-index: 2; background: var(--panel-bg); border: 2px solid #3fb950;
+            border-radius: 20px; padding: 35px; width: 380px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(63, 185, 80, 0.3);
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .celebration-badge {
+            width: 90px; height: 90px; border-radius: 50%; background: var(--node-bg);
+            border: 2px solid #3fb950; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.4); overflow: hidden;
+        }
+        .celebration-badge img { width: 60px; height: 60px; object-fit: contain; }
+        .celebration-title { font-size: 1.4rem; font-weight: bold; color: #f0f6fc; margin: 0; }
+        .celebration-subtitle { font-size: 0.9rem; color: #8b949e; margin: 0; }
+        .btn-celebration {
+            background: #238636; color: white; border: none; padding: 12px 24px; font-size: 0.95rem;
+            font-weight: bold; border-radius: 8px; cursor: pointer; transition: background 0.2s, transform 0.1s;
+            width: 100%; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.4); margin-top: 10px;
+        }
+        .btn-celebration:hover { background: #2ea043; transform: scale(1.02); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 16px;
+            padding: 25px; width: 400px; max-width: 90%; box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; align-items: center; position: relative;
+            animation: modalPop 0.2s ease-out;
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-close {
+            position: absolute; top: 15px; right: 15px; background: none; border: none;
+            color: var(--text-color); font-size: 1.2rem; cursor: pointer; font-weight: bold;
+        }
+        .modal-close:hover { color: #f85149; }
+        
+        .modal-badge { 
+            width: 70px; height: 70px; border-radius: 50%; background: var(--node-bg); border: 2px solid var(--border-color); 
+            display: flex; align-items: center; justify-content: center; margin-bottom: 12px; overflow: hidden; 
+            cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .modal-badge img { width: 45px; height: 45px; object-fit: contain; transition: transform 0.2s ease; }
+        .modal-badge:hover { transform: scale(1.15); border-color: #58a6ff; box-shadow: 0 0 15px var(--accent-glow); }
+        .modal-badge:hover img { transform: scale(1.1); }
+
+        .modal-title { font-size: 1.1rem; font-weight: bold; color: #f0f6fc; text-align: center; margin-bottom: 4px; }
+        .modal-state { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; text-align: center; }
+        
+        .kits-container {
+            display: flex; width: 100%; justify-content: space-around; gap: 15px;
+            border-top: 1px solid var(--border-color); padding-top: 15px;
+        }
+        .kit-box {
+            display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1;
+            background: var(--node-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);
+        }
+        .kit-title { font-size: 0.75rem; font-weight: 600; color: #8b949e; text-transform: uppercase; }
+        .kit-img-box {
+            width: 70px; height: 90px; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.2); border-radius: 6px; overflow: hidden; border: 1px dashed var(--border-color);
+            cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .kit-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease; }
+        .kit-img-box:hover { transform: scale(1.12); border-color: #58a6ff; border-style: solid; box-shadow: 0 0 15px var(--accent-glow); }
+        .kit-img-box:hover img { transform: scale(1.15); }
+        .kit-empty { font-size: 0.7rem; color: #484f58; text-align: center; }
+
+        .image-viewer-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 2000;
+            backdrop-filter: blur(6px); cursor: pointer;
+        }
+        .image-viewer-content {
+            max-width: 85%; max-height: 85%; display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .image-viewer-content img {
+            max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8); border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="celebration-overlay">
+        <canvas id="fireworks-canvas"></canvas>
+        <div class="celebration-card">
+            <div class="celebration-badge" id="celebration-badge-box"></div>
+            <div>
+                <p class="celebration-subtitle">🏆 CAMPEÃO DA COPA DO BRASIL 🏆</p>
+                <h2 class="celebration-title" id="celebration-team-name">Nome do Time</h2>
+            </div>
+            <button class="btn-celebration" onclick="reiniciarTorneio()">🔄 Reiniciar Simulação</button>
+        </div>
+    </div>
+
+    <h1>Copa do Brasil - Chaveamento Espiral</h1>
+
+    <div class="main-layout">
+        <div class="database-panel">
+            <h3>📂 Escudos e Uniformes</h3>
+            <label for="folder-input" class="folder-btn">📁 Selecionar Pasta Raiz</label>
+            <input type="file" id="folder-input" webkitdirectory directory multiple onchange="importarPasta(event)">
+            <div id="db-list"></div>
+        </div>
+
+        <div class="arena-wrapper">
+            <div class="controls">
+                <button class="btn" onclick="sortearTorneio()">🎲 Sortear Chaveamento</button>
+                <button class="btn btn-reset" onclick="reiniciarTorneio()">🔄 Reiniciar</button>
+                <button class="btn" onclick="resetarZoom()">🔍 Centralizar</button>
+            </div>
+
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="ajustarZoom(0.2)">+</button>
+                <button class="zoom-btn" onclick="ajustarZoom(-0.2)">-</button>
+            </div>
+
+            <div class="arena-viewport" id="viewport">
+                <div class="arena-container" id="arena">
+                    <svg id="svg-lines"></svg>
+                    <div class="champion-center" id="champion-box">🏆 Campeão</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="team-modal" onclick="fecharModalFora(event)">
+        <div class="modal-content">
+            <button class="modal-close" onclick="fecharModal()">×</button>
+            <div class="modal-badge" id="modal-badge-container"></div>
+            <div class="modal-title" id="modal-team-name">Nome do Time</div>
+            <div class="modal-state" id="modal-team-state">Estado</div>
+            
+            <div class="kits-container">
+                <div class="kit-box">
+                    <span class="kit-title">Uniforme Casa</span>
+                    <div class="kit-img-box" id="kit-home-container" onclick="abrirVisualizador(mapaCasa[currentTeamKey])">
+                        <span class="kit-empty">Sem foto</span>
+                    </div>
+                </div>
+                <div class="kit-box">
+                    <span class="kit-title">Uniforme Fora</span>
+                    <div class="kit-img-box" id="kit-away-container" onclick="abrirVisualizador(mapaFora[currentTeamKey])">
+                        <span class="kit-empty">Sem foto</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="image-viewer-overlay" id="image-viewer" onclick="fecharVisualizador()">
+        <div class="image-viewer-content">
+            <img id="viewer-img" src="" alt="Uniforme Ampliado">
+        </div>
+    </div>
+
+<script>
+    const listaCompleta = [
+        { nome: "ABC", sigla: "RN", estado: "Rio Grande do Norte" },
+        { nome: "Águia de Marabá", sigla: "PA", estado: "Pará" },
+        { nome: "Águia Negra", sigla: "MS", estado: "Mato Grosso do Sul" },
+        { nome: "Alecrim", sigla: "RN", estado: "Rio Grande do Norte" },
+        { nome: "Altos", sigla: "PI", estado: "Piauí" },
+        { nome: "Amazonas", sigla: "AM", estado: "Amazonas" },
+        { nome: "América", sigla: "RN", estado: "Rio Grande do Norte" },
+        { nome: "América Mineiro", sigla: "MG", estado: "Minas Gerais" },
+        { nome: "ASA", sigla: "AL", estado: "Alagoas" },
+        { nome: "Athletico Paranaense", sigla: "PR", estado: "Paraná" },
+        { nome: "Atlético Acreano", sigla: "AC", estado: "Acre" },
+        { nome: "Atlético Goianiense", sigla: "GO", estado: "Goiás" },
+        { nome: "Atlético Juvetuns", sigla: "AC", estado: "Acre" },
+        { nome: "Atlético Mineiro", sigla: "MG", estado: "Minas Gerais" },
+        { nome: "Avaí", sigla: "SC", estado: "Santa Catarina" },
+        { nome: "Bahia", sigla: "BA", estado: "Bahia" },
+        { nome: "Baré", sigla: "RR", estado: "Roraima" },
+        { nome: "Belo", sigla: "PB", estado: "Paraíba" },
+        { nome: "Botafogo", sigla: "RJ", estado: "Rio de Janeiro" },
+        { nome: "Brasília", sigla: "DF", estado: "Distrito Federal" },
+        { nome: "Brasiliense", sigla: "DF", estado: "Distrito Federal" },
+        { nome: "Campinense", sigla: "PB", estado: "Paraíba" },
+        { nome: "Capital", sigla: "DF", estado: "Distrito Federal" },
+        { nome: "Caxias do Sul", sigla: "RS", estado: "Rio Grande do Sul" },
+        { nome: "Ceará", sigla: "CE", estado: "Ceará" },
+        { nome: "Chapecoense", sigla: "SC", estado: "Santa Catarina" },
+        { nome: "Comercial", sigla: "MS", estado: "Mato Grosso do Sul" },
+        { nome: "Confiança", sigla: "SE", estado: "Sergipe" },
+        { nome: "Continguiba", sigla: "SE", estado: "Sergipe" },
+        { nome: "Corinthians", sigla: "SP", estado: "São Paulo" },
+        { nome: "Coritiba", sigla: "PR", estado: "Paraná" },
+        { nome: "Coruipe", sigla: "AL", estado: "Alagoas" },
+        { nome: "Costa Rica", sigla: "MS", estado: "Mato Grosso do Sul" },
+        { nome: "CRB", sigla: "AL", estado: "Alagoas" },
+        { nome: "Criciúma", sigla: "SC", estado: "Santa Catarina" },
+        { nome: "Cruzeiro", sigla: "MG", estado: "Minas Gerais" },
+        { nome: "CSA", sigla: "AL", estado: "Alagoas" },
+        { nome: "Cuiabá", sigla: "MT", estado: "Mato Grosso" },
+        { nome: "Desportiva Ferroviária", sigla: "ES", estado: "Espírito Santo" },
+        { nome: "Figueirense", sigla: "SC", estado: "Santa Catarina" },
+        { nome: "Flamengo", sigla: "RJ", estado: "Rio de Janeiro" },
+        { nome: "Fluminense", sigla: "RJ", estado: "Rio de Janeiro" },
+        { nome: "Fortaleza", sigla: "CE", estado: "Ceará" },
+        { nome: "Galvez", sigla: "AC", estado: "Acre" },
+        { nome: "Gama", sigla: "DF", estado: "Distrito Federal" },
+        { nome: "GAS", sigla: "RR", estado: "Roraima" },
+        { nome: "Goiânia", sigla: "GO", estado: "Goiás" },
+        { nome: "Goiás", sigla: "GO", estado: "Goiás" },
+        { nome: "Grêmio", sigla: "RS", estado: "Rio Grande do Sul" },
+        { nome: "Gurupi", sigla: "TO", estado: "Tocantins" },
+        { nome: "Icasa", sigla: "CE", estado: "Ceará" },
+        { nome: "Iguatu", sigla: "CE", estado: "Ceará" },
+        { nome: "Imperatriz", sigla: "MA", estado: "Maranhão" },
+        { nome: "Interporto", sigla: "TO", estado: "Tocantins" },
+        { nome: "Internacional", sigla: "RS", estado: "Rio Grande do Sul" },
+        { nome: "Itabaiana", sigla: "SE", estado: "Sergipe" },
+        { nome: "Jacuipense", sigla: "BA", estado: "Bahia" },
+        { nome: "Ji-Paraná", sigla: "RO", estado: "Rondônia" },
+        { nome: "Juazeirense", sigla: "BA", estado: "Bahia" },
+        { nome: "Juventude", sigla: "RS", estado: "Rio Grande do Sul" },
+        { nome: "Luverdense", sigla: "MT", estado: "Mato Grosso" },
+        { nome: "Macapá", sigla: "AP", estado: "Amapá" },
+        { nome: "Manaus", sigla: "AM", estado: "Amazonas" },
+        { nome: "Maranhão", sigla: "MA", estado: "Maranhão" },
+        { nome: "Mixto", sigla: "MT", estado: "Mato Grosso" },
+        { nome: "Monte Roraima", sigla: "RR", estado: "Roraima" },
+        { nome: "Moto Club", sigla: "MA", estado: "Maranhão" },
+        { nome: "Moto Esporte", sigla: "RO", estado: "Rondônia" },
+        { nome: "Nacional", sigla: "AM", estado: "Amazonas" },
+        { nome: "Náutico", sigla: "PE", estado: "Pernambuco" },
+        { nome: "Opérario Ferroviário", sigla: "PR", estado: "Paraná" },
+        { nome: "Operário Sulmatogrossense", sigla: "MS", estado: "Mato Grosso do Sul" },
+        { nome: "Palmas", sigla: "TO", estado: "Tocantins" },
+        { nome: "Palmeiras", sigla: "SP", estado: "São Paulo" },
+        { nome: "Paraná Club", sigla: "PR", estado: "Paraná" },
+        { nome: "Parnahyba", sigla: "PI", estado: "Piauí" },
+        { nome: "Paysandu", sigla: "PA", estado: "Pará" },
+        { nome: "Piauí", sigla: "PI", estado: "Piauí" },
+        { nome: "Porto Velho", sigla: "RO", estado: "Rondônia" },
+        { nome: "Potiguar", sigla: "RN", estado: "Rio Grande do Norte" },
+        { nome: "Pouso Alegre", sigla: "MG", estado: "Minas Gerais" },
+        { nome: "Real Ariquimedes", sigla: "RO", estado: "Rondônia" },
+        { nome: "Remo", sigla: "PA", estado: "Pará" },
+        { nome: "Rio Branco", sigla: "AC", estado: "Acre" },
+        { nome: "Rio Branco Capixaba", sigla: "ES", estado: "Espírito Santo" },
+        { nome: "Rio Negro", sigla: "AM", estado: "Amazonas" },
+        { nome: "Salgueiro", sigla: "PE", estado: "Pernambuco" },
+        { nome: "Sampaio Corrêa", sigla: "MA", estado: "Maranhão" },
+        { nome: "Santa Cruz", sigla: "PE", estado: "Pernambuco" },
+        { nome: "Santana", sigla: "AP", estado: "Amapá" },
+        { nome: "Santos", sigla: "SP", estado: "São Paulo" },
+        { nome: "Sergipe", sigla: "SE", estado: "Sergipe" },
+        { nome: "Serra", sigla: "ES", estado: "Espírito Santo" },
+        { nome: "Sousa", sigla: "PB", estado: "Paraíba" },
+        { nome: "Sport", sigla: "PE", estado: "Pernambuco" },
+        { nome: "São Paulo", sigla: "SP", estado: "São Paulo" },
+        { nome: "São Raimundo", sigla: "RR", estado: "Roraima" },
+        { nome: "Tiradentes", sigla: "PI", estado: "Piauí" },
+        { rubroNegro: true, nome: "Tocantinópolis", sigla: "TO", estado: "Tocantins" },
+        { nome: "Trem", sigla: "AP", estado: "Amapá" },
+        { nome: "Treze", sigla: "PB", estado: "Paraíba" },
+        { nome: "Tuna Luso", sigla: "PA", estado: "Pará" },
+        { nome: "Várzea Grande", sigla: "MT", estado: "Mato Grosso" },
+        { nome: "Vasco", sigla: "RJ", estado: "Rio de Janeiro" },
+        { nome: "Vila Nova", sigla: "GO", estado: "Goiás" },
+        { nome: "Vitória", sigla: "BA", estado: "Bahia" },
+        { nome: "Vitória Capixaba", sigla: "ES", estado: "Espírito Santo" },
+        { nome: "Ypiranga", sigla: "AP", estado: "Amapá" }
+    ];
+
+    let nomesTimes = listaCompleta.map(t => t.nome);
+
+    let mapaEscudos = {};
+    let mapaCasa = {};
+    let mapaFora = {};
+    let mapaPaletas = {}; 
+    let currentTeamKey = "";
+    let ultimoCampeao = null;
+
+    let timesEmbaralhados = [...nomesTimes];
+    let timesPreliminar = timesEmbaralhados.slice(0, 88);
+    let timesEsperaR64 = timesEmbaralhados.slice(88, 108);
+
+    let escolhasPreliminar = {};
+    let escolhasR64 = {};
+    let escolhasR32 = {};
+    let escolhasR16 = {};
+    let escolhasR8 = {};
+    let escolhasR4 = {};
+    let escolhasR2 = {};
+
+    let scale = 0.8, panX = 0, panY = 0, isDragging = false, startX = 0, startY = 0;
+    const viewport = document.getElementById('viewport');
+    const arena = document.getElementById('arena');
+
+    viewport.addEventListener('mousedown', e => { isDragging = true; startX = e.clientX - panX; startY = e.clientY - panY; });
+    window.addEventListener('mouseup', () => isDragging = false);
+    viewport.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        panX = e.clientX - startX; panY = e.clientY - startY;
+        atualizarTransform();
+    });
+    viewport.addEventListener('wheel', e => {
+        e.preventDefault();
+        scale = e.deltaY < 0 ? Math.min(scale + 0.1, 2.5) : Math.max(scale - 0.1, 0.4);
+        atualizarTransform();
+    }, {passive: false});
+
+    function resetarZoom() { scale = 0.8; panX = 0; panY = 0; atualizarTransform(); }
+    function atualizarTransform() { arena.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
+
+    function normalizar(str) { return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
+    const svgPadrao = `<svg class="svg-padrao" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>`;
+
+    function importarPasta(e) {
+        for (let file of e.target.files) {
+            let relPath = file.webkitRelativePath;
+            let nomeArquivo = file.name;
+            let url = URL.createObjectURL(file);
+            let nomeSemExt = nomeArquivo.substring(0, nomeArquivo.lastIndexOf('.')) || nomeArquivo;
+
+            if (relPath.includes('/Palhetas/') || relPath.includes('\\Palhetas\\')) {
+                // Mapeia diretamente usando o nome limpo do arquivo dentro da pasta Palhetas
+                let chaveTime = normalizar(nomeSemExt);
+                mapaPaletas[chaveTime] = url;
+            } else if (relPath.includes('/Casa/') || relPath.includes('\\Casa\\')) {
+                mapaCasa[normalizar(nomeSemExt)] = url;
+            } else if (relPath.includes('/Fora/') || relPath.includes('\\Fora\\')) {
+                mapaFora[normalizar(nomeSemExt)] = url;
+            } else {
+                mapaEscudos[normalizar(nomeSemExt)] = url;
+            }
+        }
+        montarListaDB(); 
+        renderizar();
+    }
+
+    function obterEscudo(nome) {
+        if (!nome) return svgPadrao;
+        return mapaEscudos[normalizar(nome)] ? `<img src="${mapaEscudos[normalizar(nome)]}">` : svgPadrao;
+    }
+
+    function montarListaDB() {
+        const db = document.getElementById('db-list'); db.innerHTML = '';
+        listaCompleta.forEach(t => {
+            db.innerHTML += `
+                <div class="db-item" onclick="abrirModalTime('${t.nome}')">
+                    <div class="db-info">
+                        <span>${t.nome}</span>
+                        <span class="db-state">${t.estado}</span>
+                    </div>
+                    <div class="db-badge">${obterEscudo(t.nome)}</div>
+                </div>`;
+        });
+    }
+
+    function abrirModalTime(nomeTime) {
+        let dados = listaCompleta.find(t => t.nome === nomeTime);
+        if (!dados) return;
+
+        currentTeamKey = normalizar(dados.nome);
+
+        document.getElementById('modal-team-name').innerText = dados.nome;
+        document.getElementById('modal-team-state').innerText = dados.estado;
+        
+        let badgeContainer = document.getElementById('modal-badge-container');
+        badgeContainer.innerHTML = obterEscudo(dados.nome);
+
+        let kitHome = document.getElementById('kit-home-container');
+        let kitAway = document.getElementById('kit-away-container');
+
+        kitHome.innerHTML = mapaCasa[currentTeamKey] ? `<img src="${mapaCasa[currentTeamKey]}">` : `<span class="kit-empty">Sem foto</span>`;
+        kitAway.innerHTML = mapaFora[currentTeamKey] ? `<img src="${mapaFora[currentTeamKey]}">` : `<span class="kit-empty">Sem foto</span>`;
+
+        document.getElementById('team-modal').style.display = 'flex';
+    }
+
+    function fecharModal() { document.getElementById('team-modal').style.display = 'none'; }
+    function fecharModalFora(e) { if (e.target.id === 'team-modal') fecharModal(); }
+
+    function abrirVisualizador(url) {
+        if (!url) return;
+        document.getElementById('viewer-img').src = url;
+        document.getElementById('image-viewer').style.display = 'flex';
+    }
+    function fecharVisualizador() { document.getElementById('image-viewer').style.display = 'none'; }
+
+    function embaralhar(arr) {
+        let a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function sortearTorneio() {
+        let all = embaralhar(nomesTimes);
+        timesPreliminar = all.slice(0, 88);
+        timesEsperaR64 = all.slice(88, 108);
+        escolhasPreliminar = {}; escolhasR64 = {}; escolhasR32 = {}; escolhasR16 = {}; escolhasR8 = {}; escolhasR4 = {}; escolhasR2 = {};
+        ultimoCampeao = null;
+        pararFogos();
+        renderizar();
+    }
+
+    function reiniciarTorneio() {
+        timesEmbaralhados = [...nomesTimes];
+        timesPreliminar = timesEmbaralhados.slice(0, 88);
+        timesEsperaR64 = timesEmbaralhados.slice(88, 108);
+        escolhasPreliminar = {}; escolhasR64 = {}; escolhasR32 = {}; escolhasR16 = {}; escolhasR8 = {}; escolhasR4 = {}; escolhasR2 = {};
+        ultimoCampeao = null;
+        pararFogos();
+        renderizar();
+    }
+
+    function extrairCoresDaPalheta(nomeTime, callback) {
+        let chave = normalizar(nomeTime);
+        let urlPalheta = mapaPaletas[chave];
+
+        if (urlPalheta) {
+            let img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = urlPalheta;
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                let largura = img.naturalWidth || img.width;
+                let altura = img.naturalHeight || img.height;
+                
+                canvas.width = largura;
+                canvas.height = altura;
+                ctx.drawImage(img, 0, 0);
+
+                let coresValidas = [];
+                // Lê o centro de cada bloco de 100x100 pixels (50, 150, 250, 350...)
+                for (let x = 50; x < largura; x += 100) {
+                    let pixelData = ctx.getImageData(x, altura / 2, 1, 1).data;
+                    let r = pixelData[0], g = pixelData[1], b = pixelData[2], a = pixelData[3];
+                    
+                    if (a > 200) {
+                        let hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                        coresValidas.push(hex);
+                    }
+                }
+
+                if (coresValidas.length === 0) {
+                    coresValidas = ['#da3633', '#ffffff', '#ffd700'];
+                }
+                callback(coresValidas);
+            };
+            img.onerror = () => {
+                callback(['#da3633', '#ffffff', '#ffd700']);
+            };
+        } else {
+            callback(['#da3633', '#ffffff', '#ffd700']);
+        }
+    }
+
+    let fireworksInterval = null;
+    function dispararFogosParaTime(nomeTime) {
+        const overlay = document.getElementById('celebration-overlay');
+        const teamNameEl = document.getElementById('celebration-team-name');
+        const badgeBox = document.getElementById('celebration-badge-box');
+        
+        teamNameEl.innerText = nomeTime;
+        badgeBox.innerHTML = obterEscudo(nomeTime);
+        overlay.style.display = 'flex';
+
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        extrairCoresDaPalheta(nomeTime, (coresDinamicas) => {
+            let particles = [];
+
+            function criarExplosao(x, y) {
+                let numParticles = 75;
+                for (let i = 0; i < numParticles; i++) {
+                    let angle = Math.random() * Math.PI * 2;
+                    let speed = Math.random() * 7 + 2;
+                    let color = coresDinamicas[Math.floor(Math.random() * coresDinamicas.length)];
+                    particles.push({
+                        x: x, y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        alpha: 1,
+                        color: color,
+                        decay: Math.random() * 0.012 + 0.008
+                    });
+                }
+            }
+
+            criarExplosao(window.innerWidth / 2, window.innerHeight / 2 - 50);
+            criarExplosao(window.innerWidth / 2 - 220, window.innerHeight / 2 - 120);
+            criarExplosao(window.innerWidth / 2 + 220, window.innerHeight / 2 - 120);
+
+            if (fireworksInterval) clearInterval(fireworksInterval);
+            fireworksInterval = setInterval(() => {
+                let rx = Math.random() * window.innerWidth * 0.7 + window.innerWidth * 0.15;
+                let ry = Math.random() * window.innerHeight * 0.5 + window.innerHeight * 0.2;
+                criarExplosao(rx, ry);
+            }, 750);
+
+            function loopFogos() {
+                ctx.fillStyle = 'rgba(13, 17, 23, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.04;
+                    p.alpha -= p.decay;
+
+                    if (p.alpha <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                if (document.getElementById('celebration-overlay').style.display === 'flex') {
+                    requestAnimationFrame(loopFogos);
+                }
+            }
+            requestAnimationFrame(loopFogos);
+        });
+    }
+
+    function pararFogos() {
+        if (fireworksInterval) clearInterval(fireworksInterval);
+        const overlay = document.getElementById('celebration-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const canvas = document.getElementById('fireworks-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function renderizar() {
+        arena.querySelectorAll('.team-node').forEach(n => n.remove());
+        const svg = document.getElementById('svg-lines'); svg.innerHTML = '';
+
+        const cx = 900, cy = 900;
+        const camadas = [
+            { nome: 'preliminar', raio: 780, qtd: 88, classe: 'node-preliminar' },
+            { nome: 'r64', raio: 650, qtd: 64, classe: 'node-r64' },
+            { nome: 'r32', raio: 520, qtd: 32, classe: 'node-r32' },
+            { nome: 'r16', raio: 390, qtd: 16, classe: 'node-r16' },
+            { nome: 'r8', raio: 260, qtd: 8, classe: 'node-r8' },
+            { nome: 'r4', raio: 150, qtd: 4, classe: 'node-r4' },
+            { nome: 'r2', raio: 70, qtd: 2, classe: 'node-r2' }
+        ];
+
+        let coords = {};
+
+        for (let i = 0; i < 88; i++) {
+            let ang = (i * 2 * Math.PI) / 88;
+            let x = cx + camadas[0].raio * Math.cos(ang);
+            let y = cy + camadas[0].raio * Math.sin(ang);
+            coords[`preliminar_${i}`] = { x, y };
+
+            let parID = Math.floor(i / 2);
+            let time = timesPreliminar[i];
+            let vencedorAtual = escolhasPreliminar[parID];
+            let isWinner = (vencedorAtual === time);
+            let isEliminated = (vencedorAtual && vencedorAtual !== time);
+
+            criarNo(arena, x, y, time, isWinner, isEliminated, camadas[0].classe, () => {
+                escolhasPreliminar[parID] = time;
+                renderizar();
+            });
+        }
+
+        let vencedoresPreliminar = [];
+        for (let i = 0; i < 44; i++) {
+            vencedoresPreliminar.push(escolhasPreliminar[i] || null);
+        }
+
+        let r64Times = new Array(64).fill(null);
+        let esperaIndices = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59];
+        let eIdx = 0;
+        esperaIndices.forEach(idx => {
+            if (eIdx < timesEsperaR64.length) {
+                r64Times[idx] = { time: timesEsperaR64[eIdx++], waiting: false };
+            }
+        });
+
+        let pIdx = 0;
+        for (let i = 0; i < 64; i++) {
+            if (!r64Times[i]) {
+                if (pIdx < vencedoresPreliminar.length) {
+                    let t = vencedoresPreliminar[pIdx++];
+                    r64Times[i] = { time: t, waiting: !t };
+                } else {
+                    r64Times[i] = { time: null, waiting: true };
+                }
+            }
+        }
+
+        for (let i = 0; i < 64; i++) {
+            let ang = (i * 2 * Math.PI) / 64;
+            let x = cx + camadas[1].raio * Math.cos(ang);
+            let y = cy + camadas[1].raio * Math.sin(ang);
+            coords[`r64_${i}`] = { x, y };
+
+            let slot = r64Times[i];
+            let parID = Math.floor(i / 2);
+            let vencedorAtual = escolhasR64[parID];
+            let isWinner = (vencedorAtual === slot.time && slot.time);
+            let isEliminated = (vencedorAtual && slot.time && vencedorAtual !== slot.time);
+
+            criarNo(arena, x, y, slot.time, isWinner, isEliminated, camadas[1].classe, () => {
+                if (slot.time) {
+                    escolhasR64[parID] = slot.time;
+                    renderizar();
+                }
+            }, slot.waiting);
+        }
+
+        function montarFaseSeguinte(qtdAnterior, qtdAtual, camadaIdx, antObj, atualObj, nomeFase) {
+            let vencedoresAnt = [];
+            for (let i = 0; i < qtdAnterior / 2; i++) {
+                vencedoresAnt.push(antObj[i] || null);
+            }
+
+            for (let i = 0; i < qtdAtual; i++) {
+                let ang = (i * 2 * Math.PI) / qtdAtual;
+                let x = cx + camadas[camadaIdx].raio * Math.cos(ang);
+                let y = cy + camadas[camadaIdx].raio * Math.sin(ang);
+                coords[`${nomeFase}_${i}`] = { x, y };
+
+                let time = vencedoresAnt[i] || null;
+                let parID = Math.floor(i / 2);
+                let vencedorAtual = atualObj[parID];
+                let isWinner = (vencedorAtual === time && time);
+                let isEliminated = (vencedorAtual && time && vencedorAtual !== time);
+
+                criarNo(arena, x, y, time, isWinner, isEliminated, camadas[camadaIdx].classe, () => {
+                    if (time) {
+                        atualObj[parID] = time;
+                        renderizar();
+                    }
+                }, !time);
+            }
+        }
+
+        montarFaseSeguinte(64, 32, 2, escolhasR64, escolhasR32, 'r32');
+        montarFaseSeguinte(32, 16, 3, escolhasR32, escolhasR16, 'r16');
+        montarFaseSeguinte(16, 8, 4, escolhasR16, escolhasR8, 'r8');
+        montarFaseSeguinte(8, 4, 5, escolhasR8, escolhasR4, 'r4');
+        montarFaseSeguinte(4, 2, 6, escolhasR4, escolhasR2, 'r2');
+
+        let vencedorFinal = escolhasR2[0] || escolhasR2[1] || null;
+        const champBox = document.getElementById('champion-box');
+        
+        if (vencedorFinal) {
+            champBox.innerHTML = `${obterEscudo(vencedorFinal)} <span>${vencedorFinal}</span>`;
+            if (ultimoCampeao !== vencedorFinal) {
+                ultimoCampeao = vencedorFinal;
+                dispararFogosParaTime(vencedorFinal);
+            }
+        } else {
+            champBox.innerHTML = `🏆 Campeão`;
+            if (ultimoCampeao !== null) {
+                ultimoCampeao = null;
+                pararFogos();
+            }
+        }
+
+        desenharArvoreRadial(svg, coords, cx, cy);
+    }
+
+    function criarNo(parent, x, y, time, isWinner, isEliminated, classeCor, onClick, isWaiting = false) {
+        const el = document.createElement('div');
+        el.className = `team-node ${classeCor} ${isWinner ? 'winner' : ''} ${isEliminated ? 'eliminated' : ''} ${isWaiting ? 'waiting' : ''}`;
+        el.style.left = `${x}px`; el.style.top = `${y}px`;
+        el.title = time || 'Aguardando';
+        el.innerHTML = obterEscudo(time);
+        el.onclick = onClick;
+        parent.appendChild(el);
+    }
+
+    function desenharArvoreRadial(svg, coords, cx, cy) {
+        let corLinha = "rgba(255, 255, 255, 0.22)";
+
+        function tracarConexaoDinamica(p1, p2, destino) {
+            if (!p1 || !p2 || !destino) return;
+
+            let mx = (p1.x + p2.x) / 2;
+            let my = (p1.y + p2.y) / 2;
+
+            svg.innerHTML += `<line x1="${p1.x}" y1="${p1.y}" x2="${mx}" y2="${my}" stroke="${corLinha}" stroke-width="1.5"/>`;
+            svg.innerHTML += `<line x1="${p2.x}" y1="${p2.y}" x2="${mx}" y2="${my}" stroke="${corLinha}" stroke-width="1.5"/>`;
+            svg.innerHTML += `<line x1="${mx}" y1="${my}" x2="${destino.x}" y2="${destino.y}" stroke="${corLinha}" stroke-width="1.5"/>`;
+        }
+
+        let esperaIndicesSet = new Set([2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59]);
+        let pIdx = 0;
+
+        for (let i = 0; i < 64; i++) {
+            if (esperaIndicesSet.has(i)) continue;
+
+            let origemPreliminar1 = pIdx++;
+            let origemPreliminar2 = pIdx++;
+
+            tracarConexaoDinamica(
+                coords[`preliminar_${origemPreliminar1}`], 
+                coords[`preliminar_${origemPreliminar2}`], 
+                coords[`r64_${i}`]
+            );
+        }
+
+        function conectarCamadasDinamicas(faseAnt, faseProx, qtd) {
+            for (let i = 0; i < qtd; i++) {
+                tracarConexaoDinamica(
+                    coords[`${faseAnt}_${i * 2}`], 
+                    coords[`${faseAnt}_${i * 2 + 1}`], 
+                    coords[`${faseProx}_${i}`]
+                );
+            }
+        }
+
+        conectarCamadasDinamicas('r64', 'r32', 32);
+        conectarCamadasDinamicas('r32', 'r16', 16);
+        conectarCamadasDinamicas('r16', 'r8', 8);
+        conectarCamadasDinamicas('r8', 'r4', 4);
+        conectarCamadasDinamicas('r4', 'r2', 2);
+
+        let f0 = coords['r2_0'];
+        let f1 = coords['r2_1'];
+        let centroFinal = { x: cx, y: cy };
+        tracarConexaoDinamica(f0, f1, centroFinal);
+    }
+
+    window.onload = () => { montarListaDB(); sortearTorneio(); };
+</script>
+
+</body>
+</html>
