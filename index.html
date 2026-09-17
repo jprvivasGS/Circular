@@ -600,7 +600,7 @@
 
     function extrairCoresDaPalheta(nomeTime, callback) {
         let chave = normalizar(nomeTime);
-        let urlPalheta = mapaPaletas[chave];
+        let urlPalheta = window.mapaPalhetas[chave]; 
 
         if (urlPalheta) {
             let img = new Image();
@@ -617,7 +617,6 @@
                 ctx.drawImage(img, 0, 0);
 
                 let coresValidas = [];
-                // Lê o centro de cada bloco de 100x100 pixels (50, 150, 250, 350...)
                 for (let x = 50; x < largura; x += 100) {
                     let pixelData = ctx.getImageData(x, altura / 2, 1, 1).data;
                     let r = pixelData[0], g = pixelData[1], b = pixelData[2], a = pixelData[3];
