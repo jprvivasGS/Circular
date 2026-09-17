@@ -494,19 +494,25 @@
     const svgPadrao = `<svg class="svg-padrao" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>`;
 
     function carregarImagensAutomaticamente() {
+        if (typeof listaCompleta === 'undefined') return;
+
         listaCompleta.forEach(t => {
-            let chave = normalizar(t.nome);
+            let nomeArquivo = t.nome; 
             
-            // Defina aqui o caminho relativo para as suas pastas no GitHub
-            mapaEscudos[chave] = `assets/escudos/${chave}.png`;
-            mapaCasa[chave] = `assets/casa/${chave}.png`;
-            mapaFora[chave] = `assets/fora/${chave}.png`;
-            mapaPaletas[chave] = `assets/palhetas/${chave}.png`;
+            mapaEscudos[t.nome] = `assets/${nomeArquivo}.png`;
+            
+            mapaPaletas[t.nome] = `assets/Palhetas/${nomeArquivo}.png`;
+            mapaCasa[t.nome] = `assets/Uniformes/casa_${nomeArquivo}.png`;
+            mapaFora[t.nome] = `assets/Uniformes/fora_${nomeArquivo}.png`;
         });
-        
-        montarListaDB();
-        renderizar();
+
+        if (typeof montarListaDB === 'function') montarListaDB();
+        if (typeof renderizar === 'function') renderizar();
     }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        carregarImagensAutomaticamente();
+    });
 
     function obterEscudo(nome) {
         if (!nome) return svgPadrao;
